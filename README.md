@@ -19,7 +19,14 @@ python setup.py install
 ## 实验方式
 确保当前运行目录为`exp`的上级目录，打开`exp/test.py`。
 
-若直接运行，测评的函数为所有 $28$ 个 CEC2013 标准函数，维度为 $10$，测评的 PSO 变体为 $\text{PSO}, \text{CLPSO}, \text{CLPSO-LS}_{\text{BFGS}}(\text{CL}_{\text{BFGS}}),\text{CLPSO-LS}_{\text{Nelder–Mead}}(\text{CL}_{\text{N-M}})$ 以及改进的 $\text{CLPSO-LS}_{\text{Simulated Annealing}}(\text{CL}_{\text{SA}})$。默认情况下，输出图片结果在文件夹 fig 中，数据在根目录下的 result.csv 中。
+若直接运行，测评的函数为所有 $28$ 个 CEC2013 标准函数，维度为 $10$，测评的 PSO 变体为：
+- PSO
+- CLPSO
+- CLPSO-LS-BFGS(CL-BFGS)
+- CLPSO-LS-Nelder-Mead(CL-N-M)
+- 改进的 CLPSO-LS-Simulated-Annealing(CL-SA)
+
+默认情况下，输出图片结果在文件夹 fig 中，数据在根目录下的 result.csv 中。
 
 ## 参考文献
 - [Liang J J, Qin A K, Suganthan P N, et al. Comprehensive learning particle swarm optimizer for global optimization of multimodal functions[J]. IEEE transactions on evolutionary computation, 2006, 10(3): 281-295.](https://ieeexplore.ieee.org/abstract/document/1637688/)
