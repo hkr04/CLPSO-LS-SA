@@ -76,8 +76,10 @@ class problem:
         self.err_seq = [] # 每一行存储一次实验的信息(绝对误差），列为迭代次数
         self.ind_seq = [] # 每一行存储一次实验的信息(最优个体），列为迭代次数
         self.exp_cnt = exp_cnt
+        self.ever_best = float('inf')
         for _ in range(exp_cnt):
             # 初始化
+            self.terminate = False
             self.fitness_function.reset()
             self.gbest = None
             self.pop = gen_pop(pop_size=self.pop_size, n_dim=self.ind_size, x_min=self.x_min, x_max=self.x_max)
@@ -91,16 +93,15 @@ class problem:
             # 训练
             for self.cnt in range(1, self.n_gen+1):
                 self.update(self)
-                if self.fitness_function.count >= self.Max_FES:
-                    self.gbest_seq.append(best_ind(self.gbest))
-                    break
                 if self.callback is not None:
                     self.callback(self)
                 # gbest 可能在 callback 之后被更新
                 self.gbest_seq.append(best_ind(self.gbest))
-                if self.fitness_function.count >= self.Max_FES:
+                if self.fitness_function.count >= self.Max_FES or self.terminate:
                     break
-                
+            if (abs(self.gbest.f - self.gt) < self.ever_best) ^ self.fitness_max:
+                self.ever_best = abs(self.gbest.f - self.gt)
+                self.ever_best_seq = [abs(ind.f-self.gt) for ind in self.gbest_seq] + [abs(self.gbest_seq[-1].f-self.gt)] * (self.n_gen - self.cnt)
             self.val_seq.append([ind.f for ind in self.gbest_seq] + [self.gbest_seq[-1].f] * (self.n_gen - self.cnt))
             self.err_seq.append([abs(ind.f-self.gt) for ind in self.gbest_seq] + [abs(self.gbest_seq[-1].f-self.gt)] * (self.n_gen - self.cnt))
             self.ind_seq.append(self.gbest_seq[:] + [self.gbest_seq[-1]] * (self.n_gen - self.cnt))
@@ -136,7 +137,7 @@ class problem:
         return np.median(self.err_seq[:, -1], axis=0)
     
     def best(self):
-        return self.err_seq[:, -1].min(axis=0)
+        return self.ever_best
 
     def worst(self):
         return self.err_seq[:, -1].max(axis=0)
@@ -178,17 +179,21 @@ def callback(F):
 #     print(f"generation {F.cnt}, gbest: {F.gbest.x}, fitness: {F.gbest.f}")
     print(f"generation {F.cnt}, fitness: {F.gbest.f}")    
 
-def update(F, w_ini=0.9, w_end=0.4, c1=2, c2=2): # standard
+def update(F, w_ini=0.9, w_end=0.4, c1=2, c2=2): 
     w = w_ini-(w_ini-w_end)*(F.cnt-1)/F.n_gen # linear
     for ind in F.pop:
-        ind.v = w*ind.v + c1*random.random()*(ind.pbest.x-ind.x) + c2*random.random()*(F.gbest.x-ind.x)
+        for j in range(F.ind_size):
+            ind.v[j] = w*ind.v[j] + c1*random.random()*(ind.pbest.x[j]-ind.x[j]) + c2*random.random()*(F.gbest.x[j]-ind.x[j])
         ind.x = ind.v + ind.x
 
-def no_inertia_weight_upd(F):
-    c1, c2 = 2, 2
-    for ind in F.pop:
-        ind.v = ind.v + c1*random.random()*(ind.pbest.x-ind.x) + c2*random.random()*(F.gbest.x-ind.x)
-        ind.x = ind.v + ind.x
+    for i, ind in enumerate(F.pop):
+        if F.fitness_function.count >= F.Max_FES:
+            break
+        ind.f = F.fitness_function(ind.x)
+        if (ind.f < ind.pbest.f) ^ F.fitness_max:
+            ind.pbest = best_ind(ind)
+        if (ind.f < F.gbest.f) ^ F.fitness_max:
+            F.gbest = best_ind(ind, i)
 
 def show(*args, **kwargs):
     n_gen = args[0].n_gen
@@ -215,7 +220,7 @@ def show(*args, **kwargs):
         elif kwargs['type'] == 'best':
             for i, arg in enumerate(args):
                 plt.plot(range(0, n_gen+1), 
-                         arg.err_seq.min(axis=0), 
+                         arg.ever_best_seq, 
                          label=arg.label if arg.label is not None else str(i+1))
             plt.ylabel('Best Error')
         elif kwargs['type'] == 'median':
@@ -242,19 +247,10 @@ def show(*args, **kwargs):
 if __name__ == "__main__":
     # 在标准函数 F1(Sphere) 上的训练示例
     test = problem(pop_size=40, ind_size=10, x_min=-100, x_max=100, fitness_function=1, update=update,\
-                   n_gen=200, fitness_max=False, callback=None, label='PSO', Max_FES=None)
+                   n_gen=200, fitness_max=False, callback=None, label='$\omega$PSO', Max_FES=None)
     test.train(50) # 独立训练 50 次
     print("results:", test.val_seq[:, -1])
     print(test.fitness_function.count)
     show(test, title='F1 in 10-D problem')
-
-    # # 比较两种 PSO 在 F2 上的表现
-    # test1 = problem(pop_size=40, ind_size=10, x_min=-100, x_max=100, fitness_function=2, update=no_inertia_weight_upd,\
-    #                 n_gen=200, fitness_max=False, callback=None, termination_cond=None, label='no inertia weight PSO')
-    # test1.train(20)
-    # test2 = problem(pop_size=40, ind_size=10, x_min=-100, x_max=100, fitness_function=2, update=update,\
-    #                 n_gen=200, fitness_max=False, callback=None, termination_cond=None, label='std PSO')
-    # test2.train(20)
-    # show(test1, test2, type='median')
 
 
